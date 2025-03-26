@@ -21,7 +21,7 @@ def countdown(update, context):
 
 def main():
     # Використовуємо змінну оточення замість прямого токена
-    updater = Updater(os.getenv("7654360166:AAHcIMr_a44DdlI-6IGw7bnD6-PyBt3WqZc"), use_context=True)
+    updater = Updater(os.getenv("BOT_TOKEN"), use_context=True)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("time", countdown))
     updater.start_polling()
