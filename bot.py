@@ -29,7 +29,7 @@ async def handle_updates(bot):
                         await bot.send_message(
                             chat_id=update.message.chat_id,
                             text=(
-                                "<b>⏳ До поїздки до Львова залишилось:</b>\n"
+                                "<b>⏳ До прийняття рішення залишилось:</b>\n"
                                 f"<code>{days}</code> <i>днів</i> 🌞\n"
                                 f"<code>{hours}</code> <i>годин</i> ⏰\n"
                                 f"<code>{minutes}</code> <i>хвилин</i> ⏱️\n"
