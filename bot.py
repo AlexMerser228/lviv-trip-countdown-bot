@@ -12,7 +12,7 @@ async def handle_updates(bot):
         try:
             updates = await bot.get_updates(offset=offset, timeout=30)
             for update in updates:
-                if update.message and update.message.text == "/time":
+                if update.message and update.message.text == "Що там по часу":  # Нова команда
                     now = datetime.now()
                     delta = END_DATE - now
                     if delta.total_seconds() <= 0:
@@ -29,7 +29,7 @@ async def handle_updates(bot):
                         await bot.send_message(
                             chat_id=update.message.chat_id,
                             text=(
-                                "<b>⏳ До прийняття рішення залишилось:</b>\n"
+                                "<b>⏳ До поїздки до Львова залишилось:</b>\n"
                                 f"<code>{days}</code> <i>днів</i> 🌞\n"
                                 f"<code>{hours}</code> <i>годин</i> ⏰\n"
                                 f"<code>{minutes}</code> <i>хвилин</i> ⏱️\n"
