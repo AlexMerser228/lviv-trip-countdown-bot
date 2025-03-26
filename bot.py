@@ -20,8 +20,8 @@ async def countdown(update, context):
         )
 
 def main():
-    # Створюємо Application замість Updater
-    app = Application.builder().token(os.getenv("BOT_TOKEN")).build()
+    # Вимикаємо JobQueue, щоб уникнути apscheduler
+    app = Application.builder().token(os.getenv("BOT_TOKEN")).job_queue(None).build()
     app.add_handler(CommandHandler("time", countdown))
     app.run_polling()
 
