@@ -1,7 +1,6 @@
 import os
-from telegram import Bot
-from telegram.ext import ContextTypes
 from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes
 from datetime import datetime
 
 # Кінцева дата: 14 квітня 2025, 23:59:59
@@ -22,9 +21,8 @@ async def countdown(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 def main():
-    # Використовуємо простий Bot замість Application
-    bot = Bot(token=os.getenv("BOT_TOKEN"))
-    app = Application.builder().bot(bot).build()
+    # Створюємо Application
+    app = Application.builder().token(os.getenv("BOT_TOKEN")).build()
     app.add_handler(CommandHandler("time", countdown))
     app.run_polling()
 
