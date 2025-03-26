@@ -18,7 +18,8 @@ async def handle_updates(bot):
                     if delta.total_seconds() <= 0:
                         await bot.send_message(
                             chat_id=update.message.chat_id,
-                            text="Час вийшов! Руки на стіл!"
+                            text="<b>⏰ Час вийшов!</b>\nРуки на стіл! 🖐️",
+                            parse_mode="HTML"
                         )
                     else:
                         days, seconds = delta.days, delta.seconds
@@ -27,12 +28,19 @@ async def handle_updates(bot):
                         seconds = seconds % 60
                         await bot.send_message(
                             chat_id=update.message.chat_id,
-                            text=f"До прийняття остаточного рішення залишилось: {days} днів, {hours} годин, {minutes} хвилин, {seconds} секунд"
+                            text=(
+                                "<b>⏳ До прийняття рішення залишилось:</b>\n"
+                                f"<code>{days}</code> <i>днів</i> 🌞\n"
+                                f"<code>{hours}</code> <i>годин</i> ⏰\n"
+                                f"<code>{minutes}</code> <i>хвилин</i> ⏱️\n"
+                                f"<code>{seconds}</code> <i>секунд</i> ⚡"
+                            ),
+                            parse_mode="HTML"
                         )
                 offset = update.update_id + 1
         except Exception as e:
             print(f"Error: {e}")
-            await asyncio.sleep(5)  # Пауза перед повторною спробою
+            await asyncio.sleep(5)
 
 async def main():
     bot = Bot(token=os.getenv("BOT_TOKEN"))
