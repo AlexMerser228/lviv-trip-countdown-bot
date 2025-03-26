@@ -1,6 +1,7 @@
 import os
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+import asyncio
+from telegram import Bot, Update
+from telegram.ext import ContextTypes, CommandHandler
 from datetime import datetime
 
 # Кінцева дата: 14 квітня 2025, 23:59:59
@@ -20,11 +21,23 @@ async def countdown(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"До прийняття остаточного рішення залишилось: {days} днів, {hours} годин, {minutes} хвилин, {seconds} секунд"
         )
 
-def main():
-    # Створюємо Application
-    app = Application.builder().token(os.getenv("BOT_TOKEN")).build()
+async def main():
+    # Створюємо бота
+    bot = Bot(token=os.getenv("BOT_TOKEN"))
+    
+    # Налаштовуємо обробник команд
+    from telegram.ext import Application
+    app = Application.builder().bot(bot).build()
     app.add_handler(CommandHandler("time", countdown))
-    app.run_polling()
+    
+    # Запускаємо polling
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+    
+    # Тримаємо бота активним
+    while True:
+        await asyncio.sleep(3600)  # Чекаємо годину перед повторною ітерацією
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
