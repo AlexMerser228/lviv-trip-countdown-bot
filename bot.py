@@ -10,10 +10,10 @@ END_DATE = datetime(2025, 4, 14, 23, 59, 59)
 
 # Налаштування Google Sheets API
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-CREDS_FILE = "credentials.json"  # Файл має бути в корені Replit
+CREDS_FILE = "credentials.json"
 SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1rVUe1wHurLiq9qNoUHy3FyTI3NXi78IlcpXA3IYlhOw/edit?gid=0#gid=0"
 
-# Ініціалізація Google Sheets
+# Інісіалізація Google Sheets
 creds = ServiceAccountCredentials.from_json_keyfile_name(CREDS_FILE, SCOPE)
 client = gspread.authorize(creds)
 sheet = client.open_by_url(SPREADSHEET_URL).sheet1
@@ -21,15 +21,14 @@ sheet = client.open_by_url(SPREADSHEET_URL).sheet1
 # Функція для додавання витрати в таблицю
 def add_expense_to_sheet(amount, sponsor, comment):
     try:
-        amount_value = float(amount.strip())  # Перетворюємо суму в число без "грн"
+        amount_value = float(amount.strip())  # Перетворюємо суму в число
     except ValueError:
         return "Помилка: сума має бути числом (наприклад, '200')"
     
     current_date = datetime.now().strftime("%d.%m.%Y")
     next_row = len(sheet.get_all_values()) + 1
-    # Записуємо в таблицю: A (Дата), B (Спонсор), C (Сума як число), D (Коментар)
-    sheet.update(f"A{next_row}:D{next_row}", [[current_date, sponsor, amount_value, comment]])
-    # У повідомленні додаємо "грн" для зрозумілості
+    # Новий порядок: спочатку значення, потім діапазон
+    sheet.update([[current_date, sponsor, amount_value, comment]], f"A{next_row}:D{next_row}")
     return f"Додано: {current_date}, {sponsor}, {amount_value} грн, {comment}"
 
 async def handle_updates(bot):
