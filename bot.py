@@ -23,7 +23,7 @@ sheet = client.open_by_url(SPREADSHEET_URL).sheet1
 current_winner = None
 last_draw_date = None
 group_members = set()
-ADMIN_USERNAME = "ТвійЮзернейм"  # Заміни на свій Telegram-юзернейм, наприклад, "@Sanya123"
+ADMIN_USERNAME = "@Merser123"  # Заміни на свій Telegram-юзернейм, наприклад, "@Sanya123"
 
 # Функція для додавання витрати в таблицю
 def add_expense_to_sheet(amount, sponsor, comment):
