@@ -10,7 +10,7 @@ END_DATE = datetime(2025, 4, 14, 23, 59, 59)
 
 # Налаштування Google Sheets API
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-CREDS_FILE = "credentials.json"  # Завантажте свій файл credentials.json
+CREDS_FILE = "credentials.json"  # Файл має бути в корені Replit
 SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1rVUe1wHurLiq9qNoUHy3FyTI3NXi78IlcpXA3IYlhOw/edit?gid=0#gid=0"
 
 # Ініціалізація Google Sheets
@@ -20,11 +20,17 @@ sheet = client.open_by_url(SPREADSHEET_URL).sheet1
 
 # Функція для додавання витрати в таблицю
 def add_expense_to_sheet(amount, sponsor, comment):
+    try:
+        amount_value = float(amount.strip())  # Перетворюємо суму в число без "грн"
+    except ValueError:
+        return "Помилка: сума має бути числом (наприклад, '200')"
+    
     current_date = datetime.now().strftime("%d.%m.%Y")
     next_row = len(sheet.get_all_values()) + 1
-    # Запис у колонки: A (Дата), B (Спонсор), C (Сума), D (Коментар)
-    sheet.update(f"A{next_row}:D{next_row}", [[current_date, sponsor, amount, comment]])
-    return f"Додано: {current_date}, {sponsor}, {amount}, {comment}"
+    # Записуємо в таблицю: A (Дата), B (Спонсор), C (Сума як число), D (Коментар)
+    sheet.update(f"A{next_row}:D{next_row}", [[current_date, sponsor, amount_value, comment]])
+    # У повідомленні додаємо "грн" для зрозумілості
+    return f"Додано: {current_date}, {sponsor}, {amount_value} грн, {comment}"
 
 async def handle_updates(bot):
     offset = None
@@ -66,12 +72,12 @@ async def handle_updates(bot):
                     elif text.startswith("Витрата:"):
                         try:
                             parts = text.replace("Витрата:", "").strip().split(", ")
-                            if len(parts) == 2:  # Тепер лише сума і коментар
+                            if len(parts) == 2:  # Лише сума і коментар
                                 amount, comment = parts
                                 # Отримуємо юзернейм відправника
                                 sponsor = update.message.from_user.username
                                 if not sponsor:  # Якщо юзернейму немає
-                                    sponsor = update.message.from_user.first_name  # Беремо ім’я
+                                    sponsor = update.message.from_user.first_name
                                 result = add_expense_to_sheet(amount, f"@{sponsor}" if sponsor.startswith("@") else sponsor, comment)
                                 await bot.send_message(
                                     chat_id=update.message.chat_id,
@@ -80,7 +86,7 @@ async def handle_updates(bot):
                             else:
                                 await bot.send_message(
                                     chat_id=update.message.chat_id,
-                                    text="Неправильний формат. Використовуй: Витрата: сума, коментар"
+                                    text="Неправильний формат. Використовуй: Витрата: сума, коментар (наприклад, '200, кава')"
                                 )
                         except Exception as e:
                             await bot.send_message(
