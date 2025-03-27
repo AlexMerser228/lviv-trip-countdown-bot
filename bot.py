@@ -23,7 +23,8 @@ sheet = client.open_by_url(SPREADSHEET_URL).sheet1
 current_winner = None
 last_draw_date = None
 group_members = set()
-ADMIN_USERNAME = "@Merser123"  # Заміни на свій Telegram-юзернейм, наприклад, "@Sanya123"
+ADMIN_USERNAME = "@Merser123"  # Заміни на свій юзернейм, наприклад, "@Sanya123"
+draw_scheduled = False  # Окрема змінна для розкладу
 
 # Функція для додавання витрати в таблицю
 def add_expense_to_sheet(amount, sponsor, comment):
@@ -37,20 +38,6 @@ def add_expense_to_sheet(amount, sponsor, comment):
     sheet.update([[current_date, sponsor, amount_value, comment]], f"A{next_row}:D{next_row}")
     return f"Додано: {current_date}, {sponsor}, {amount_value} грн, {comment}"
 
-# Функція для отримання всіх учасників групи
-async def update_group_members(bot, chat_id):
-    global group_members
-    try:
-        chat_members = await bot.get_chat_members(chat_id=chat_id)
-        group_members.clear()
-        for member in chat_members:
-            if not member.user.is_bot:  # Виключаємо ботів
-                username = member.user.username or member.user.first_name
-                group_members.add(username)
-        print(f"Оновлено список учасників: {len(group_members)}")
-    except Exception as e:
-        print(f"Помилка при отриманні учасників: {e}")
-
 # Функція для розіграшу
 async def conduct_draw(bot, chat_id):
     global current_winner, last_draw_date, group_members
@@ -62,10 +49,11 @@ async def conduct_draw(bot, chat_id):
             text=f"Проводиться розіграш локальної вахти підара...\nСьогодні на вахті буде @{current_winner}!"
         )
     else:
-        await bot.send_message(chat_id=chat_id, text="Немає учасників для розіграшу!")
+        await bot.send_message(chat_id=chat_id, text="Немає учасників для розіграшу! Додай їх через /addmember")
 
 # Щоденний розіграш о 9:00
 async def schedule_draw(bot, chat_id):
+    global draw_scheduled
     while True:
         now = datetime.now()
         if now.hour == 9 and now.minute == 0:
@@ -75,8 +63,9 @@ async def schedule_draw(bot, chat_id):
             seconds_to_next_minute = 60 - now.second
             await asyncio.sleep(seconds_to_next_minute)
 
+# Обробка оновлень
 async def handle_updates(bot):
-    global group_members, current_winner
+    global group_members, current_winner, draw_scheduled
     offset = None
     chat_id = None
     
@@ -89,9 +78,8 @@ async def handle_updates(bot):
                     chat_id = update.message.chat_id if chat_id is None else chat_id
                     user = update.message.from_user.username or update.message.from_user.first_name
 
-                    # Оновлюємо список учасників при першому повідомленні
-                    if not group_members:
-                        await update_group_members(bot, chat_id)
+                    # Додаємо учасника з кожного повідомлення
+                    group_members.add(user)
 
                     # Обробка команди "Що там по часу"
                     if text == "Що там по часу":
@@ -141,12 +129,21 @@ async def handle_updates(bot):
                     elif text == "/draw" and user == ADMIN_USERNAME:
                         await conduct_draw(bot, chat_id)
 
+                    # Команда для додавання учасника вручну (тільки для адміна)
+                    elif text.startswith("/addmember") and user == ADMIN_USERNAME:
+                        try:
+                            new_member = text.split(" ", 1)[1].strip()
+                            group_members.add(new_member)
+                            await bot.send_message(chat_id=chat_id, text=f"Додано учасника: {new_member}")
+                        except IndexError:
+                            await bot.send_message(chat_id=chat_id, text="Вкажи ім'я або @юзернейм після /addmember")
+
                 offset = update.update_id + 1
             
-            # Запускаємо щоденний розіграш, якщо chat_id відомий
-            if chat_id and not hasattr(bot, 'draw_scheduled'):
+            # Запускаємо щоденний розіграш, якщо ще не запущений
+            if chat_id and not draw_scheduled:
                 asyncio.create_task(schedule_draw(bot, chat_id))
-                bot.draw_scheduled = True
+                draw_scheduled = True
 
         except Exception as e:
             print(f"Error: {e}")
