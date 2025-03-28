@@ -28,7 +28,6 @@ current_winner = None
 last_draw_date = None
 group_members = set()
 ADMIN_USERNAME = "@Merser123"  # Ваш юзернейм
-CHAT_ID = "-2520345133"  # Ваш chat_id групи
 
 # Функція для додавання витрати в таблицю
 def add_expense_to_sheet(amount, sponsor, comment):
@@ -73,11 +72,14 @@ async def handle_updates(bot):
     while True:
         try:
             updates = await bot.get_updates(offset=offset, timeout=30)
+            print(f"Отримано оновлень: {len(updates)}")  # Відладка
             for update in updates:
-                if update.message and update.message.text and str(update.message.chat_id) == CHAT_ID:
+                print(f"Оновлення: {update}")  # Відладка
+                if update.message and update.message.text:
                     text = update.message.text.strip()
                     chat_id = update.message.chat_id
                     user = update.message.from_user.username or update.message.from_user.first_name
+                    print(f"Chat ID: {chat_id}, Текст: {text}")  # Відладка
 
                     # Додаємо учасника з кожного повідомлення
                     group_members.add(user)
@@ -153,11 +155,19 @@ async def main():
     bot = Bot(token=token)
     print("Бот запущений!")
     
-    # Запускаємо обробку оновлень і щоденний розіграш паралельно
-    await asyncio.gather(
-        handle_updates(bot),
-        schedule_draw(bot, CHAT_ID)
-    )
+    # Отримуємо chat_id першої групи, де бот активний, для розіграшу
+    updates = await bot.get_updates(timeout=10)
+    chat_id = updates[0].message.chat_id if updates else None
+    
+    if chat_id:
+        # Запускаємо обробку оновлень і щоденний розіграш паралельно
+        await asyncio.gather(
+            handle_updates(bot),
+            schedule_draw(bot, chat_id)
+        )
+    else:
+        print("Не вдалося визначити chat_id. Переконайтесь, що бот доданий до групи!")
+        await handle_updates(bot)  # Продовжуємо обробку оновлень
 
 if __name__ == "__main__":
     asyncio.run(main())
