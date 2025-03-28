@@ -15,16 +15,20 @@ CREDS_FILE = "credentials.json"
 SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1rVUe1wHurLiq9qNoUHy3FyTI3NXi78IlcpXA3IYlhOw/edit?gid=0#gid=0"
 
 # Ініціалізація Google Sheets
-creds = ServiceAccountCredentials.from_json_keyfile_name(CREDS_FILE, SCOPE)
-client = gspread.authorize(creds)
-sheet = client.open_by_url(SPREADSHEET_URL).sheet1
+try:
+    creds = ServiceAccountCredentials.from_json_keyfile_name(CREDS_FILE, SCOPE)
+    client = gspread.authorize(creds)
+    sheet = client.open_by_url(SPREADSHEET_URL).sheet1
+except Exception as e:
+    print(f"Помилка Google Sheets: {e}")
+    exit(1)
 
 # Змінні для розіграшу
 current_winner = None
 last_draw_date = None
 group_members = set()
-ADMIN_USERNAME = "@Merser123"  # Заміни на свій юзернейм, наприклад, "@Sanya123"
-draw_scheduled = False  # Окрема змінна для розкладу
+ADMIN_USERNAME = "@Merser123"  # Ваш юзернейм
+CHAT_ID = "-2520345133"  # Ваш chat_id групи
 
 # Функція для додавання витрати в таблицю
 def add_expense_to_sheet(amount, sponsor, comment):
@@ -53,29 +57,26 @@ async def conduct_draw(bot, chat_id):
 
 # Щоденний розіграш о 9:00
 async def schedule_draw(bot, chat_id):
-    global draw_scheduled
     while True:
         now = datetime.now()
-        if now.hour == 9 and now.minute == 0:
+        if now.hour == 9 and now.minute == 0 and (last_draw_date is None or last_draw_date.date() != now.date()):
             await conduct_draw(bot, chat_id)
             await asyncio.sleep(60)  # Чекаємо хвилину, щоб уникнути повторів
         else:
-            seconds_to_next_minute = 60 - now.second
-            await asyncio.sleep(seconds_to_next_minute)
+            await asyncio.sleep(60)  # Перевіряємо щохвилини
 
 # Обробка оновлень
 async def handle_updates(bot):
-    global group_members, current_winner, draw_scheduled
+    global group_members, current_winner
     offset = None
-    chat_id = None
     
     while True:
         try:
             updates = await bot.get_updates(offset=offset, timeout=30)
             for update in updates:
-                if update.message and update.message.text:
+                if update.message and update.message.text and str(update.message.chat_id) == CHAT_ID:
                     text = update.message.text.strip()
-                    chat_id = update.message.chat_id if chat_id is None else chat_id
+                    chat_id = update.message.chat_id
                     user = update.message.from_user.username or update.message.from_user.first_name
 
                     # Додаємо учасника з кожного повідомлення
@@ -139,20 +140,24 @@ async def handle_updates(bot):
                             await bot.send_message(chat_id=chat_id, text="Вкажи ім'я або @юзернейм після /addmember")
 
                 offset = update.update_id + 1
-            
-            # Запускаємо щоденний розіграш, якщо ще не запущений
-            if chat_id and not draw_scheduled:
-                asyncio.create_task(schedule_draw(bot, chat_id))
-                draw_scheduled = True
 
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Помилка: {e}")
             await asyncio.sleep(5)
 
 async def main():
-    bot = Bot(token=os.getenv("BOT_TOKEN"))
-    print("Bot started!")
-    await handle_updates(bot)
+    token = os.getenv("BOT_TOKEN")
+    if not token:
+        print("Помилка: BOT_TOKEN не заданий!")
+        return
+    bot = Bot(token=token)
+    print("Бот запущений!")
+    
+    # Запускаємо обробку оновлень і щоденний розіграш паралельно
+    await asyncio.gather(
+        handle_updates(bot),
+        schedule_draw(bot, CHAT_ID)
+    )
 
 if __name__ == "__main__":
     asyncio.run(main())
