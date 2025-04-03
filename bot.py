@@ -1,10 +1,11 @@
 import os
 import asyncio
-from telegram import Bot, Update
 from datetime import datetime, timedelta
 import gspread
 from google.oauth2.service_account import Credentials
 import json
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 # Кінцева дата: 14 квітня 2025, 23:59:59
 END_DATE = datetime(2025, 4, 14, 23, 59, 59)
@@ -39,75 +40,67 @@ def add_expense_to_sheet(amount, sponsor, comment):
     sheet.update([[current_date, sponsor, amount_value, comment]], f"A{next_row}:D{next_row}")
     return f"Додано: {current_date}, {sponsor}, {amount_value} грн, {comment}"
 
-# Обробка оновлень
-async def handle_updates(bot):
-    offset = None
-    
-    while True:
-        try:
-            updates = await bot.get_updates(offset=offset, timeout=30)
-            for update in updates:
-                if update.message and update.message.text:
-                    text = update.message.text.strip()
-                    chat_id = update.message.chat_id
-                    user = update.message.from_user.username or update.message.from_user.first_name
+# Обробник команди "Що там по часу"
+async def time_left(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    try:
+        now = datetime.now()
+        delta = END_DATE - now
+        if delta.total_seconds() <= 0:
+            await update.message.reply_text("<b>⏰ Час вийшов!</b>\nРуки на стіл! 🖐️", parse_mode="HTML")
+        else:
+            days, seconds = delta.days, delta.seconds
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            seconds = seconds % 60
+            await update.message.reply_text(
+                "<b>⏳ До прийняття рішення залишилось:</b>\n"
+                f"<code>{days}</code> <i>днів</i> 🌞\n"
+                f"<code>{hours}</code> <i>годин</i> ⏰\n"
+                f"<code>{minutes}</code> <i>хвилин</i> ⏱️\n"
+                f"<code>{seconds}</code> <i>секунд</i> ⚡",
+                parse_mode="HTML"
+            )
+    except Exception as e:
+        await update.message.reply_text(f"Помилка при обчисленні часу: {e}")
 
-                    # Обробка команди "Що там по часу"
-                    if text == "Що там по часу":
-                        try:
-                            now = datetime.now()
-                            delta = END_DATE - now
-                            if delta.total_seconds() <= 0:
-                                await bot.send_message(chat_id=chat_id, text="<b>⏰ Час вийшов!</b>\nРуки на стіл! 🖐️", parse_mode="HTML")
-                            else:
-                                days, seconds = delta.days, delta.seconds
-                                hours = seconds // 3600
-                                minutes = (seconds % 3600) // 60
-                                seconds = seconds % 60
-                                await bot.send_message(
-                                    chat_id=chat_id,
-                                    text=(
-                                        "<b>⏳ До прийняття рішення залишилось:</b>\n"
-                                        f"<code>{days}</code> <i>днів</i> 🌞\n"
-                                        f"<code>{hours}</code> <i>годин</i> ⏰\n"
-                                        f"<code>{minutes}</code> <i>хвилин</i> ⏱️\n"
-                                        f"<code>{seconds}</code> <i>секунд</i> ⚡"
-                                    ),
-                                    parse_mode="HTML"
-                                )
-                        except Exception as e:
-                            await bot.send_message(chat_id=chat_id, text=f"Помилка при обчисленні часу: {e}")
+# Обробник для витрат
+async def handle_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    text = update.message.text.strip()
+    if not text.startswith("Витрата:"):
+        return
 
-                    # Обробка витрат
-                    elif text.startswith("Витрата:"):
-                        try:
-                            parts = text.replace("Витрата:", "").strip().split(", ")
-                            if len(parts) == 2:
-                                amount, comment = parts
-                                sponsor = f"@{user}" if user.startswith("@") else user
-                                result = add_expense_to_sheet(amount, sponsor, comment)
-                                await bot.send_message(chat_id=chat_id, text=result)
-                            else:
-                                await bot.send_message(chat_id=chat_id, text="Неправильний формат. Використовуй: Витрата: сума, коментар (наприклад, '200, кава')")
-                        except Exception as e:
-                            await bot.send_message(chat_id=chat_id, text=f"Помилка: {e}")
+    try:
+        parts = text.replace("Витрата:", "").strip().split(", ")
+        if len(parts) == 2:
+            amount, comment = parts
+            user = update.message.from_user.username or update.message.from_user.first_name
+            sponsor = f"@{user}" if user.startswith("@") else user
+            result = add_expense_to_sheet(amount, sponsor, comment)
+            await update.message.reply_text(result)
+        else:
+            await update.message.reply_text("Неправильний формат. Використовуй: Витрата: сума, коментар (наприклад, '200, кава')")
+    except Exception as e:
+        await update.message.reply_text(f"Помилка: {e}")
 
-                offset = update.update_id + 1
-
-        except Exception as e:
-            print(f"Помилка: {e}")
-            await asyncio.sleep(5)
-
-async def main():
+def main() -> None:
+    # Отримуємо токен із змінної середовища
     token = os.getenv("BOT_TOKEN")
     if not token:
         print("Помилка: BOT_TOKEN не заданий!")
         return
-    bot = Bot(token=token)
+
+    # Створюємо додаток
+    application = Application.builder().token(token).build()
+
+    # Додаємо обробники
+    application.add_handler(CommandHandler("time", time_left))  # Команда /time для "Що там по часу"
+    application.add_handler(MessageHandler(filters.Regex(r'^Що там по часу$'), time_left))
+    application.add_handler(MessageHandler(filters.Regex(r'^Витрата:'), handle_expense))
+
     print("Бот запущений!")
-    
-    # Запускаємо обробку оновлень
-    await handle_updates(bot)
+
+    # Запускаємо бота
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
