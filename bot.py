@@ -10,7 +10,7 @@ END_DATE = datetime(2025, 4, 14, 23, 59, 59)
 
 # Налаштування Google Sheets API
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-CREDS_FILE = "credentials.json"
+CREDS_FILE = "/var/app/current/credentials.json"  # Оновлений шлях
 SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1rVUe1wHurLiq9qNoUHy3FyTI3NXi78IlcpXA3IYlhOw/edit?gid=0#gid=0"
 
 # Ініціалізація Google Sheets
